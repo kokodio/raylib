@@ -211,6 +211,7 @@ fn compileRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
                     waylandGenerate(b, raylib, "wayland.xml", "wayland-client-protocol");
                     waylandGenerate(b, raylib, "xdg-shell.xml", "xdg-shell-client-protocol");
                     waylandGenerate(b, raylib, "xdg-decoration-unstable-v1.xml", "xdg-decoration-unstable-v1-client-protocol");
+                    waylandGenerate(b, raylib, "wlr-layer-shell-unstable-v1.xml", "wlr-layer-shell-unstable-v1-client-protocol");
                     waylandGenerate(b, raylib, "viewporter.xml", "viewporter-client-protocol");
                     waylandGenerate(b, raylib, "relative-pointer-unstable-v1.xml", "relative-pointer-unstable-v1-client-protocol");
                     waylandGenerate(b, raylib, "pointer-constraints-unstable-v1.xml", "pointer-constraints-unstable-v1-client-protocol");

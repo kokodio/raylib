@@ -50,6 +50,7 @@
 #include "fractional-scale-v1-client-protocol.h"
 #include "xdg-activation-v1-client-protocol.h"
 #include "idle-inhibit-unstable-v1-client-protocol.h"
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 // NOTE: Versions of wayland-scanner prior to 1.17.91 named every global array of
 //       wl_interface pointers 'types', making it impossible to combine several unmodified
@@ -92,6 +93,10 @@
 #include "idle-inhibit-unstable-v1-client-protocol-code.h"
 #undef types
 
+#define types _glfw_wlr_layer_shell_types
+#include "wlr-layer-shell-unstable-v1-client-protocol-code.h"
+#undef types
+
 static void wmBaseHandlePing(void* userData,
                              struct xdg_wm_base* wmBase,
                              uint32_t serial)
@@ -115,6 +120,12 @@ static void registryHandleGlobal(void* userData,
         _glfw.wl.compositor =
             wl_registry_bind(registry, name, &wl_compositor_interface,
                              _glfw_min(3, version));
+    }
+    else if (strcmp(interface, "zwlr_layer_shell_v1") == 0)
+    {
+        _glfw.wl.layerShell =
+            wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
+        printf("[GLFW] Layer shell bound!\n");
     }
     else if (strcmp(interface, "wl_subcompositor") == 0)
     {
@@ -984,6 +995,8 @@ void _glfwTerminateWayland(void)
         xdg_activation_v1_destroy(_glfw.wl.activationManager);
     if (_glfw.wl.fractionalScaleManager)
         wp_fractional_scale_manager_v1_destroy(_glfw.wl.fractionalScaleManager);
+    if (_glfw.wl.layerShell)
+        zwlr_layer_shell_v1_destroy(_glfw.wl.layerShell);
     if (_glfw.wl.registry)
         wl_registry_destroy(_glfw.wl.registry);
     if (_glfw.wl.display)

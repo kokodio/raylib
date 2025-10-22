@@ -52,6 +52,7 @@
 #include "xdg-activation-v1-client-protocol.h"
 #include "idle-inhibit-unstable-v1-client-protocol.h"
 #include "fractional-scale-v1-client-protocol.h"
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #define GLFW_BORDER_SIZE    4
 #define GLFW_CAPTION_HEIGHT 24
@@ -985,8 +986,87 @@ static GLFWbool createXdgShellObjects(_GLFWwindow* window)
     return GLFW_TRUE;
 }
 
+static void layerSurfaceHandleConfigure(void* userData,
+                                        struct zwlr_layer_surface_v1* surface,
+                                        uint32_t serial, uint32_t width, uint32_t height)
+{
+    _GLFWwindow* window = userData;
+
+    zwlr_layer_surface_v1_ack_configure(surface, serial);
+
+    // Если compositor предлагает размер (0,0 = используй свой)
+    if (width > 0 && height > 0)
+    {
+        window->wl.width = width;
+        window->wl.height = height;
+        resizeFramebuffer(window);
+    }
+
+    if (!window->wl.visible)
+    {
+        window->wl.visible = GLFW_TRUE;
+        _glfwInputWindowDamage(window);
+    }
+}
+
+static void layerSurfaceHandleClosed(void* userData, struct zwlr_layer_surface_v1* surface)
+{
+    _GLFWwindow* window = userData;
+    _glfwInputWindowCloseRequest(window);
+}
+
+static const struct zwlr_layer_surface_v1_listener layerSurfaceListener = {
+    .configure = layerSurfaceHandleConfigure,
+    .closed = layerSurfaceHandleClosed,
+};
+
+static GLFWbool createLayerShellObjects(_GLFWwindow* window)
+{
+    if (!_glfw.wl.layerShell)
+        return GLFW_FALSE;
+
+    window->wl.layer.surface = zwlr_layer_shell_v1_get_layer_surface(
+        _glfw.wl.layerShell,
+        window->wl.surface,
+        NULL,
+        ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
+        "raylib_overlay"
+    );
+
+    if (!window->wl.layer.surface)
+        return GLFW_FALSE;
+
+    window->wl.layer.isOverlay = GLFW_TRUE;
+
+    zwlr_layer_surface_v1_add_listener(window->wl.layer.surface,
+                                       &layerSurfaceListener,
+                                       window);
+
+    zwlr_layer_surface_v1_set_size(window->wl.layer.surface,
+                                   window->wl.width,
+                                   window->wl.height);
+    zwlr_layer_surface_v1_set_anchor(window->wl.layer.surface, 0);
+    zwlr_layer_surface_v1_set_exclusive_zone(window->wl.layer.surface, -1);
+    zwlr_layer_surface_v1_set_keyboard_interactivity(window->wl.layer.surface,
+        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
+
+    struct wl_region* region = wl_compositor_create_region(_glfw.wl.compositor);
+    wl_surface_set_input_region(window->wl.surface, region);
+    wl_region_destroy(region);
+
+    wl_surface_commit(window->wl.surface);
+    wl_display_roundtrip(_glfw.wl.display);
+
+    return GLFW_TRUE;
+}
+
 static GLFWbool createShellObjects(_GLFWwindow* window)
 {
+    if (_glfw.wl.layerShell)
+    {
+        return createLayerShellObjects(window);
+    }
+
     if (_glfw.wl.libdecor.context)
     {
         if (createLibdecorFrame(window))
@@ -999,6 +1079,14 @@ static GLFWbool createShellObjects(_GLFWwindow* window)
 static void destroyShellObjects(_GLFWwindow* window)
 {
     destroyFallbackDecorations(window);
+
+    if (window->wl.layer.surface)
+    {
+        zwlr_layer_surface_v1_destroy(window->wl.layer.surface);
+        window->wl.layer.surface = NULL;
+        window->wl.layer.isOverlay = GLFW_FALSE;
+        return;
+    }
 
     if (window->wl.libdecor.frame)
         libdecor_frame_unref(window->wl.libdecor.frame);
@@ -2167,7 +2255,9 @@ GLFWbool _glfwCreateWindowWayland(_GLFWwindow* window,
     if (wndconfig->mousePassthrough)
         _glfwSetWindowMousePassthroughWayland(window, GLFW_TRUE);
 
-    if (window->monitor || wndconfig->visible)
+    if (!createShellObjects(window))
+        return GLFW_FALSE;
+    else if (window->monitor || wndconfig->visible) //xd
     {
         if (!createShellObjects(window))
             return GLFW_FALSE;

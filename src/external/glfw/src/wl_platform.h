@@ -380,6 +380,11 @@ typedef struct _GLFWwindowWayland
         uint32_t                decorationMode;
     } xdg;
 
+	struct {
+		struct zwlr_layer_surface_v1* surface;
+		GLFWbool                      isOverlay;
+	} layer;
+
     struct {
         struct libdecor_frame*  frame;
     } libdecor;
@@ -437,6 +442,8 @@ typedef struct _GLFWlibraryWayland
     struct zwp_idle_inhibit_manager_v1*     idleInhibitManager;
     struct xdg_activation_v1*               activationManager;
     struct wp_fractional_scale_manager_v1*  fractionalScaleManager;
+
+	struct zwlr_layer_shell_v1* layerShell;
 
     _GLFWofferWayland*          offers;
     unsigned int                offerCount;
