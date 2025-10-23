@@ -1050,10 +1050,6 @@ static GLFWbool createLayerShellObjects(_GLFWwindow* window)
     zwlr_layer_surface_v1_set_keyboard_interactivity(window->wl.layer.surface,
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
 
-    struct wl_region* region = wl_compositor_create_region(_glfw.wl.compositor);
-    wl_surface_set_input_region(window->wl.surface, region);
-    wl_region_destroy(region);
-
     wl_surface_commit(window->wl.surface);
     wl_display_roundtrip(_glfw.wl.display);
 
